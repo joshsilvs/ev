@@ -3,36 +3,26 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-# Define Monte Carlo Risk of Ruin function
-def monte_carlo_risk_of_ruin(win_rate, risk_per_trade, num_simulations=10000, max_drawdown=0.5):
+# Function to calculate win/loss streaks
+def calculate_streaks(results):
     """
-    Simulates risk of ruin using a Monte Carlo approach.
-
-    Parameters:
-    - win_rate: Probability of winning a trade.
-    - risk_per_trade: Fraction of capital risked per trade.
-    - num_simulations: Number of Monte Carlo simulations.
-    - max_drawdown: Maximum allowable drawdown before being considered ruined.
-
-    Returns:
-    - Risk of Ruin probability based on simulations.
+    Given a list of 'Win' and 'Loss' results, calculate the longest winning and losing streaks.
     """
-    num_trades = 100  
-    ruin_count = 0
+    max_win_streak = max_loss_streak = 0
+    current_win_streak = current_loss_streak = 0
 
-    for _ in range(num_simulations):
-        equity = 1.0  
-        for _ in range(num_trades):
-            if np.random.rand() < win_rate:
-                equity *= (1 + risk_per_trade)  
-            else:
-                equity *= (1 - risk_per_trade)  
+    for result in results:
+        if result == "Win":
+            current_win_streak += 1
+            current_loss_streak = 0
+        else:
+            current_loss_streak += 1
+            current_win_streak = 0
 
-            if equity <= (1 - max_drawdown):  
-                ruin_count += 1
-                break
+        max_win_streak = max(max_win_streak, current_win_streak)
+        max_loss_streak = max(max_loss_streak, current_loss_streak)
 
-    return ruin_count / num_simulations  
+    return max_win_streak, max_loss_streak
 
 # Streamlit App Title
 st.title("📊 MAE & MFE Trading Dashboard")
@@ -99,7 +89,7 @@ if uploaded_file is not None:
                 st.warning("No trades found that match the selected criteria. Adjust your inputs.")
 
             # =============================
-            # ✨ Magic Button for Finding Best SL, TP, EV, and Risk of Ruin
+            # ✨ Magic Button for Finding Best SL, TP, EV, and Streak Data
             # =============================
             st.header("✨ Let the Magic Happen!")
 
@@ -130,17 +120,25 @@ if uploaded_file is not None:
                     st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp:.2f}")
                     st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev:.2f}")
 
-                    # Risk of Ruin (RoR) Calculations
-                    risk_of_ruin_kelly = np.exp(-5 * (win_rate - ((1 - win_rate) / (best_tp / best_sl)))) if best_sl > 0 else 1.0
-                    risk_of_ruin_monte_carlo = monte_carlo_risk_of_ruin(win_rate, 0.01)
+                    # =============================
+                    # 📊 Streak Data for Magic Results
+                    # =============================
+                    df_magic = df_filtered[(df_filtered["MFE"] >= best_tp) | (df_filtered["MAE"] >= best_sl)]
+                    df_magic["Result"] = np.where(df_magic["MFE"] >= best_tp, "Win", "Loss")
 
-                    # Display RoR Tables
-                    st.subheader("📊 Risk of Ruin Calculations")
-                    risk_data = pd.DataFrame({
-                        "Method": ["Kelly Criterion", "Monte Carlo Simulation"],
-                        "Risk of Ruin (%)": [risk_of_ruin_kelly * 100, risk_of_ruin_monte_carlo * 100]
+                    # Calculate streaks and total wins/losses
+                    win_streak, loss_streak = calculate_streaks(df_magic["Result"].tolist())
+                    total_wins = (df_magic["Result"] == "Win").sum()
+                    total_losses = (df_magic["Result"] == "Loss").sum()
+
+                    # Display streak statistics
+                    st.subheader("📊 Streak Data")
+                    streak_data = pd.DataFrame({
+                        "Metric": ["Biggest Win Streak", "Biggest Loss Streak", "Total Wins", "Total Losses"],
+                        "Value": [win_streak, loss_streak, total_wins, total_losses]
                     })
-                    st.table(risk_data)
+
+                    st.table(streak_data)
 
                 else:
                     st.error("⚠️ No optimal combination found. Try adjusting filters.")
