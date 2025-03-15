@@ -82,6 +82,16 @@ if uploaded_file is not None:
             df_filtered = df[df['DayOfWeek'].isin(days_selected)]
 
             # =============================
+            # 📊 Scatter Plots for MAE & MFE
+            # =============================
+            st.header("📈 Scatter Plots for MAE & MFE")
+            st.subheader("🔵 MAE Scatter Plot")
+            st.plotly_chart(px.scatter(df_filtered, y="MAE", title="MAE Scatter Plot"))
+
+            st.subheader("🟢 MFE Scatter Plot")
+            st.plotly_chart(px.scatter(df_filtered, y="MFE", title="MFE Scatter Plot"))
+
+            # =============================
             # 🔘 Find Best 1:2 RR Combination
             # =============================
             st.header("🔘 Find Best 1:2 Risk-to-Reward Combination")
