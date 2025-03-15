@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 
 # Streamlit App Title
-st.title("📊 MAE & MFE Trading Dashboard")
+st.title("📊 EV Ryno Raper")
 
 # File Upload
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
