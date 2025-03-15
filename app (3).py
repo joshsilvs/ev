@@ -114,7 +114,7 @@ if uploaded_file is not None:
             # =============================
             # ✨ Press this button to quit your job!
             # =============================
-            st.header("✨ I quit")
+            st.header("✨ Press This Button To Quit Your Job")
 
             if st.button("✨ I Quit ✨"):
                 best_ev = float('-inf')
