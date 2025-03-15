@@ -46,123 +46,93 @@ if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         st.write("✅ File uploaded successfully!")
 
-        # Show the full dataset (limit large files to first 1000 rows)
-        st.subheader("📊 Full Uploaded Dataset Preview")
-        if len(df) > 1000:
-            st.write("⚠️ Displaying first 1000 rows (file too large).")
-            st.dataframe(df.head(1000))
-        else:
-            st.dataframe(df)
-
         # Convert Datetime column if it exists
         if "Datetime" in df.columns:
             df['Datetime'] = pd.to_datetime(df['Datetime'], errors='coerce')
-        else:
-            st.warning("⚠️ 'Datetime' column not found in CSV.")
 
         # Ensure required columns exist
         required_columns = ["Duration", "MAE", "MFE"]
         missing_columns = [col for col in required_columns if col not in df.columns]
 
-        if missing_columns:
-            st.error(f"⚠️ Missing required columns: {missing_columns}")
-        else:
-            # Extract Day of the Week from Column C (if exists)
-            if len(df.columns) > 2:
-                df.rename(columns={df.columns[2]: "DayOfWeek"}, inplace=True)
-                df['DayOfWeek'] = df['DayOfWeek'].astype(str)
-
+        if not missing_columns:
             df['Duration'] = pd.to_numeric(df['Duration'], errors='coerce')
 
-            # Show updated dataset preview
-            st.write("✅ Processed Data Preview:", df.head())
-
             # =============================
-            # 🔍 Expected Value (EV) Tester
-            # =============================
-            st.header("🔍 Expected Value (EV) Tester")
-
-            # User inputs for MAE, MFE thresholds, and dollar amount per trade
-            user_mae = st.number_input("Enter MAE Threshold (SL Level)", min_value=0.0, step=0.01, value=0.2)
-            user_mfe = st.number_input("Enter MFE Threshold (TP Level)", min_value=0.0, step=0.01, value=0.5)
-            trade_amount = st.number_input("Enter Dollar Amount per Trade ($)", min_value=1.0, step=1.0, value=100.0)
-
-            # Day of the week selection filter
-            days_selected = st.multiselect(
-                "Filter by Days of the Week", 
-                df['DayOfWeek'].unique().tolist(), 
-                default=df['DayOfWeek'].unique().tolist()
-            )
-
-            # Filter dataset based on selected days
-            df_filtered = df[df['DayOfWeek'].isin(days_selected)]
-
-            # Count Wins (TP) and Losses (SL)
-            win_trades = df_filtered[df_filtered["MFE"] >= user_mfe].shape[0]
-            loss_trades = df_filtered[(df_filtered["MAE"] >= user_mae) | (df_filtered["MFE"] < user_mfe)].shape[0]
-            total_trades = win_trades + loss_trades
-
-            if total_trades > 0:
-                win_rate = win_trades / total_trades
-                loss_rate = loss_trades / total_trades
-
-                # Calculate Expected Value (EV)
-                expected_value = (win_rate * trade_amount) - (loss_rate * trade_amount)
-
-                # Display Results
-                st.subheader("📊 EV Tester Results")
-                st.write(f"✔️ **Win Rate:** {win_rate:.2%}")
-                st.write(f"❌ **Loss Rate:** {loss_rate:.2%}")
-                st.write(f"💰 **Expected Value per Trade:** ${expected_value:.2f}")
-
-            else:
-                st.warning("No trades found that match the selected criteria. Adjust your inputs.")
-
-            # =============================
-            # ✨ Magic Button for Finding Best SL, TP, and EV
+            # ✨ Magic Button for Finding Best SL, TP, EV, and Risk of Ruin
             # =============================
             st.header("✨ Let the Magic Happen!")
 
             if st.button("✨ Magic ✨"):
                 best_ev = float('-inf')
                 best_sl, best_tp = None, None
+                best_win_rate = 0
 
                 # Loop through possible SL and TP combinations
-                for sl in np.percentile(df_filtered["MAE"], [10, 20, 30, 40, 50, 60, 70, 80, 90]):
-                    for tp in np.percentile(df_filtered["MFE"], [10, 20, 30, 40, 50, 60, 70, 80, 90]):
-                        wins = df_filtered[df_filtered["MFE"] >= tp].shape[0]
-                        losses = df_filtered[(df_filtered["MAE"] >= sl) | (df_filtered["MFE"] < tp)].shape[0]
+                for sl in np.percentile(df["MAE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
+                    for tp in np.percentile(df["MFE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
+                        wins = df[df["MFE"] >= tp].shape[0]
+                        losses = df[(df["MAE"] >= sl) | (df["MFE"] < tp)].shape[0]
                         total = wins + losses
 
                         if total > 0:
                             win_rate = wins / total
-                            ev = (win_rate * trade_amount) - ((1 - win_rate) * trade_amount)
+                            ev = (win_rate * 1) - ((1 - win_rate) * 1)  
 
                             if ev > best_ev:
                                 best_ev = ev
                                 best_sl, best_tp = sl, tp
+                                best_win_rate = win_rate
 
-                # Display Best Results
-                if best_sl is not None and best_tp is not None:
+                # Handle cases where no valid SL/TP is found
+                if best_sl is None or best_tp is None or np.isnan(best_sl) or np.isnan(best_tp):
+                    st.error("⚠️ No optimal combination found. Try adjusting filters.")
+                else:
+                    # Ensure best_sl is non-zero for division
+                    risk_to_reward = (best_tp / best_sl) if best_sl > 0 else 0
+
+                    # Calculate Risk of Ruin (Kelly & Monte Carlo)
+                    risk_per_trade = 0.01  
+
+                    # Kelly Criterion Risk of Ruin
+                    if risk_to_reward > 0:
+                        kelly_criterion = best_win_rate - ((1 - best_win_rate) / risk_to_reward)
+                        risk_of_ruin_kelly = np.exp(-5 * kelly_criterion) if kelly_criterion > 0 else 1.0
+                    else:
+                        risk_of_ruin_kelly = 1.0
+
+                    # Monte Carlo Risk of Ruin
+                    risk_of_ruin_monte_carlo = monte_carlo_risk_of_ruin(best_win_rate, risk_per_trade)
+
+                    # Display Best Results
                     st.success("✅ Best Combination Found!")
                     st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl:.2f}")
                     st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp:.2f}")
                     st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev:.2f}")
 
-                    # Risk of Ruin (RoR) Calculations
-                    risk_of_ruin_kelly = np.exp(-5 * (win_rate - ((1 - win_rate) / (best_tp / best_sl)))) if best_sl > 0 else 1.0
-                    risk_of_ruin_monte_carlo = monte_carlo_risk_of_ruin(win_rate, 0.01)
-
-                    # Display RoR Tables
+                    # Display Risk of Ruin tables
                     st.subheader("📊 Risk of Ruin Calculations")
+
                     risk_data = pd.DataFrame({
                         "Method": ["Kelly Criterion", "Monte Carlo Simulation"],
                         "Risk of Ruin (%)": [risk_of_ruin_kelly * 100, risk_of_ruin_monte_carlo * 100]
                     })
+
                     st.table(risk_data)
 
-                else:
-                    st.error("⚠️ No optimal combination found. Try adjusting filters.")
+                    # Cross-Comparison Table
+                    st.subheader("🔍 Kelly vs. Monte Carlo Risk Comparison")
+                    comparison_data = pd.DataFrame({
+                        "Metric": ["Win Rate", "Risk Per Trade (%)", "Risk-to-Reward Ratio", "Kelly Risk of Ruin (%)", "Monte Carlo Risk of Ruin (%)"],
+                        "Value": [
+                            f"{best_win_rate:.2%}", 
+                            f"{risk_per_trade * 100:.2f}%", 
+                            f"{risk_to_reward:.2f}",
+                            f"{risk_of_ruin_kelly * 100:.2f}%",
+                            f"{risk_of_ruin_monte_carlo * 100:.2f}%"
+                        ]
+                    })
+
+                    st.table(comparison_data)
 
     except Exception as e:
         st.error(f"⚠️ Error loading file: {e}")
