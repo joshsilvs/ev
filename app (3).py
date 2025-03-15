@@ -25,7 +25,7 @@ def calculate_streaks(results):
     return max_win_streak, max_loss_streak
 
 # Streamlit App Title
-st.title("📊 MAE & MFE Trading Dashboard")
+st.title("📊 EV Ryno Raper")
 
 # File Upload
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
@@ -74,9 +74,9 @@ if uploaded_file is not None:
             # =============================
             # ✨ Magic Button for Finding Best SL, TP, EV
             # =============================
-            st.header("✨ Let the Magic Happen!")
+            st.header("✨ Quit Your Job Here")
 
-            if st.button("✨ Magic ✨"):
+            if st.button("✨ I Quit ✨"):
                 best_ev = float('-inf')
                 best_sl, best_tp = None, None
 
@@ -115,7 +115,7 @@ if uploaded_file is not None:
             # =============================
             # 🔘 Find Best 1:1 RR Combination
             # =============================
-            st.header("🔘 Find Best 1:1 Risk-to-Reward Combination")
+            st.header("🔘 Lazy Johnson 1:1 Finder")
 
             if st.button("🔘 Find Best 1:1 RR Setup"):
                 best_ev_rr = float('-inf')
