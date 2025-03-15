@@ -48,6 +48,30 @@ if uploaded_file is not None:
             df['Duration'] = pd.to_numeric(df['Duration'], errors='coerce')
 
             # =============================
+            # 🔍 Select Timeframe: 3, 6, or 12 Months
+            # =============================
+            st.header("⏳ Select Timeframe for Analysis")
+            timeframe_option = st.radio(
+                "Choose a timeframe:",
+                ["3 Months", "6 Months", "12 Months"],
+                index=2
+            )
+
+            # Define timeframes based on the latest date in the dataset
+            latest_date = df['Datetime'].max()
+            three_months_ago = latest_date - pd.DateOffset(months=3)
+            six_months_ago = latest_date - pd.DateOffset(months=6)
+            one_year_ago = latest_date - pd.DateOffset(years=1)
+
+            # Apply selected timeframe filter
+            if timeframe_option == "3 Months":
+                df_filtered = df[df['Datetime'] >= three_months_ago]
+            elif timeframe_option == "6 Months":
+                df_filtered = df[df['Datetime'] >= six_months_ago]
+            elif timeframe_option == "12 Months":
+                df_filtered = df[df['Datetime'] >= one_year_ago]
+
+            # =============================
             # 🔍 Expected Value (EV) Tester (Restored)
             # =============================
             st.header("🔍 Expected Value (EV) Tester")
@@ -60,12 +84,12 @@ if uploaded_file is not None:
             # Day of the week selection filter
             days_selected = st.multiselect(
                 "Filter by Days of the Week", 
-                df['DayOfWeek'].unique().tolist(), 
-                default=df['DayOfWeek'].unique().tolist()
+                df_filtered['DayOfWeek'].unique().tolist(), 
+                default=df_filtered['DayOfWeek'].unique().tolist()
             )
 
             # Filter dataset based on selected days
-            df_filtered = df[df['DayOfWeek'].isin(days_selected)]
+            df_filtered = df_filtered[df_filtered['DayOfWeek'].isin(days_selected)]
 
             # Count Wins (TP) and Losses (SL)
             win_trades = df_filtered[df_filtered["MFE"] >= user_mfe].shape[0]
@@ -96,7 +120,6 @@ if uploaded_file is not None:
             if st.button("✨ Magic ✨"):
                 best_ev = float('-inf')
                 best_sl, best_tp = None, None
-                best_win_rate = 0
 
                 # Loop through possible SL and TP combinations
                 for sl in np.percentile(df_filtered["MAE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
@@ -119,26 +142,6 @@ if uploaded_file is not None:
                     st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl:.2f}")
                     st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp:.2f}")
                     st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev:.2f}")
-
-                    # =============================
-                    # 📊 Streak Data for Magic Results
-                    # =============================
-                    df_magic = df_filtered[(df_filtered["MFE"] >= best_tp) | (df_filtered["MAE"] >= best_sl)]
-                    df_magic["Result"] = np.where(df_magic["MFE"] >= best_tp, "Win", "Loss")
-
-                    # Calculate streaks and total wins/losses
-                    win_streak, loss_streak = calculate_streaks(df_magic["Result"].tolist())
-                    total_wins = (df_magic["Result"] == "Win").sum()
-                    total_losses = (df_magic["Result"] == "Loss").sum()
-
-                    # Display streak statistics
-                    st.subheader("📊 Streak Data")
-                    streak_data = pd.DataFrame({
-                        "Metric": ["Biggest Win Streak", "Biggest Loss Streak", "Total Wins", "Total Losses"],
-                        "Value": [win_streak, loss_streak, total_wins, total_losses]
-                    })
-
-                    st.table(streak_data)
 
                 else:
                     st.error("⚠️ No optimal combination found. Try adjusting filters.")
