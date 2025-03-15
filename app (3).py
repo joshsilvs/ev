@@ -3,6 +3,37 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
+# Define Monte Carlo Risk of Ruin function
+def monte_carlo_risk_of_ruin(win_rate, risk_per_trade, num_simulations=10000, max_drawdown=0.5):
+    """
+    Simulates risk of ruin using a Monte Carlo approach.
+
+    Parameters:
+    - win_rate: Probability of winning a trade.
+    - risk_per_trade: Fraction of capital risked per trade.
+    - num_simulations: Number of Monte Carlo simulations.
+    - max_drawdown: Maximum allowable drawdown before being considered ruined.
+
+    Returns:
+    - Risk of Ruin probability based on simulations.
+    """
+    num_trades = 100  # Simulating 100 trades per run
+    ruin_count = 0
+
+    for _ in range(num_simulations):
+        equity = 1.0  # Starting with normalized equity of 1
+        for _ in range(num_trades):
+            if np.random.rand() < win_rate:
+                equity *= (1 + risk_per_trade)  # Win scenario
+            else:
+                equity *= (1 - risk_per_trade)  # Loss scenario
+
+            if equity <= (1 - max_drawdown):  # If drawdown exceeds limit, count as ruin
+                ruin_count += 1
+                break
+
+    return ruin_count / num_simulations  # Proportion of simulations where ruin occurred
+
 # Streamlit App Title
 st.title("📊 MAE & MFE Trading Dashboard")
 
@@ -45,30 +76,6 @@ if uploaded_file is not None:
 
             # Show updated dataset preview
             st.write("✅ Processed Data Preview:", df.head())
-
-            # =============================
-            # 🔍 Select Timeframe: 3, 6, or 12 Months
-            # =============================
-            st.header("⏳ Select Timeframe for Analysis")
-            timeframe_option = st.radio(
-                "Choose a timeframe:",
-                ["3 Months", "6 Months", "12 Months"],
-                index=2
-            )
-
-            # Define timeframes based on the latest date in the dataset
-            latest_date = df['Datetime'].max()
-            three_months_ago = latest_date - pd.DateOffset(months=3)
-            six_months_ago = latest_date - pd.DateOffset(months=6)
-            one_year_ago = latest_date - pd.DateOffset(years=1)
-
-            # Apply selected timeframe filter
-            if timeframe_option == "3 Months":
-                df = df[df['Datetime'] >= three_months_ago]
-            elif timeframe_option == "6 Months":
-                df = df[df['Datetime'] >= six_months_ago]
-            elif timeframe_option == "12 Months":
-                df = df[df['Datetime'] >= one_year_ago]
 
             # =============================
             # 🔍 Expected Value (EV) Tester
@@ -114,9 +121,9 @@ if uploaded_file is not None:
             # =============================
             # ✨ Magic Button for Finding Best SL, TP, and EV
             # =============================
-            st.header("✨ Press This Button To Quit Your Job")
+            st.header("✨ Let the Magic Happen!")
 
-            if st.button("✨ I Quit ✨"):
+            if st.button("✨ Magic ✨"):
                 best_ev = float('-inf')
                 best_sl, best_tp = None, None
 
@@ -129,8 +136,7 @@ if uploaded_file is not None:
 
                         if total > 0:
                             win_rate = wins / total
-                            loss_rate = losses / total
-                            ev = (win_rate * trade_amount) - (loss_rate * trade_amount)
+                            ev = (win_rate * trade_amount) - ((1 - win_rate) * trade_amount)
 
                             if ev > best_ev:
                                 best_ev = ev
@@ -142,6 +148,19 @@ if uploaded_file is not None:
                     st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl:.2f}")
                     st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp:.2f}")
                     st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev:.2f}")
+
+                    # Risk of Ruin (RoR) Calculations
+                    risk_of_ruin_kelly = np.exp(-5 * (win_rate - ((1 - win_rate) / (best_tp / best_sl)))) if best_sl > 0 else 1.0
+                    risk_of_ruin_monte_carlo = monte_carlo_risk_of_ruin(win_rate, 0.01)
+
+                    # Display RoR Tables
+                    st.subheader("📊 Risk of Ruin Calculations")
+                    risk_data = pd.DataFrame({
+                        "Method": ["Kelly Criterion", "Monte Carlo Simulation"],
+                        "Risk of Ruin (%)": [risk_of_ruin_kelly * 100, risk_of_ruin_monte_carlo * 100]
+                    })
+                    st.table(risk_data)
+
                 else:
                     st.error("⚠️ No optimal combination found. Try adjusting filters.")
 
