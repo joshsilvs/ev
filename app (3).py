@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 
 # Streamlit App Title
-st.title("📊 MAE & MFE Trading Dashboard")
+st.title("📊 Ev Ryno Raper")
 
 # File Upload
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
@@ -112,11 +112,11 @@ if uploaded_file is not None:
                 st.warning("No trades found that match the selected criteria. Adjust your inputs.")
 
             # =============================
-            # ✨ Magic Button for Finding Best SL, TP, and EV
+            # ✨ Press this button to quit your job!
             # =============================
-            st.header("✨ Let the Magic Happen!")
+            st.header("✨ I quit")
 
-            if st.button("✨ Magic ✨"):
+            if st.button("✨ I Quit ✨"):
                 best_ev = float('-inf')
                 best_sl, best_tp = None, None
 
