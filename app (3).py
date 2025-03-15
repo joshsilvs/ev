@@ -25,7 +25,7 @@ def calculate_streaks(results):
     return max_win_streak, max_loss_streak
 
 # Streamlit App Title
-st.title("📊 EV Ryno Raper")
+st.title("📊 MAE & MFE Trading Dashboard")
 
 # File Upload
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
@@ -41,14 +41,14 @@ if uploaded_file is not None:
             df['Datetime'] = pd.to_datetime(df['Datetime'], errors='coerce')
 
         # Ensure required columns exist
-        required_columns = ["Duration", "MAE", "MFE"]
+        required_columns = ["Duration", "MAE", "MFE", "DayOfWeek"]
         missing_columns = [col for col in required_columns if col not in df.columns]
 
         if not missing_columns:
             df['Duration'] = pd.to_numeric(df['Duration'], errors='coerce')
 
             # =============================
-            # 🔍 Select Timeframe: 3, 6, or 12 Months
+            # ⏳ Select Timeframe: 3, 6, or 12 Months
             # =============================
             st.header("⏳ Select Timeframe for Analysis")
             timeframe_option = st.radio(
@@ -65,18 +65,31 @@ if uploaded_file is not None:
 
             # Apply selected timeframe filter
             if timeframe_option == "3 Months":
-                df_filtered = df[df['Datetime'] >= three_months_ago]
+                df = df[df['Datetime'] >= three_months_ago]
             elif timeframe_option == "6 Months":
-                df_filtered = df[df['Datetime'] >= six_months_ago]
+                df = df[df['Datetime'] >= six_months_ago]
             elif timeframe_option == "12 Months":
-                df_filtered = df[df['Datetime'] >= one_year_ago]
+                df = df[df['Datetime'] >= one_year_ago]
+
+            # =============================
+            # 📅 Day of the Week Filter
+            # =============================
+            st.header("📅 Filter by Day of the Week")
+            days_selected = st.multiselect(
+                "Select trading days to analyze:",
+                df['DayOfWeek'].unique().tolist(),
+                default=df['DayOfWeek'].unique().tolist()
+            )
+
+            # Apply Day Filter
+            df_filtered = df[df['DayOfWeek'].isin(days_selected)]
 
             # =============================
             # ✨ Magic Button for Finding Best SL, TP, EV
             # =============================
-            st.header("✨ Quit Your Job Here")
+            st.header("✨ Let the Magic Happen!")
 
-            if st.button("✨ I Quit ✨"):
+            if st.button("✨ Magic ✨"):
                 best_ev = float('-inf')
                 best_sl, best_tp = None, None
 
@@ -115,7 +128,7 @@ if uploaded_file is not None:
             # =============================
             # 🔘 Find Best 1:1 RR Combination
             # =============================
-            st.header("🔘 Lazy Johnson 1:1 Finder")
+            st.header("🔘 Find Best 1:1 Risk-to-Reward Combination")
 
             if st.button("🔘 Find Best 1:1 RR Setup"):
                 best_ev_rr = float('-inf')
@@ -141,18 +154,6 @@ if uploaded_file is not None:
                     st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl_rr:.2f}")
                     st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp_rr:.2f}")
                     st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev_rr:.2f}")
-
-                    # Calculate streaks for 1:1 Finder
-                    trade_results_rr = ["Win" if mfe >= best_tp_rr else "Loss" for mfe in df_filtered["MFE"]]
-                    max_win_streak_rr, max_loss_streak_rr = calculate_streaks(trade_results_rr)
-                    total_wins_rr = trade_results_rr.count("Win")
-                    total_losses_rr = trade_results_rr.count("Loss")
-
-                    st.subheader("📊 Win/Loss Streak Data (1:1 RR Finder)")
-                    st.write(f"🔥 **Biggest Win Streak:** {max_win_streak_rr}")
-                    st.write(f"💀 **Biggest Loss Streak:** {max_loss_streak_rr}")
-                    st.write(f"✅ **Total Wins:** {total_wins_rr}")
-                    st.write(f"❌ **Total Losses:** {total_losses_rr}")
 
     except Exception as e:
         st.error(f"⚠️ Error loading file: {e}")
