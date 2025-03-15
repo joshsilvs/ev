@@ -72,7 +72,7 @@ if uploaded_file is not None:
                 df_filtered = df[df['Datetime'] >= one_year_ago]
 
             # =============================
-            # 🔍 Expected Value (EV) Tester (Restored)
+            # 🔍 Expected Value (EV) Tester
             # =============================
             st.header("🔍 Expected Value (EV) Tester")
 
@@ -108,6 +108,22 @@ if uploaded_file is not None:
                 st.write(f"✔️ **Win Rate:** {win_rate:.2%}")
                 st.write(f"❌ **Loss Rate:** {loss_rate:.2%}")
                 st.write(f"💰 **Expected Value per Trade:** ${expected_value:.2f}")
+
+                # Generate streak data for EV Tester Results
+                df_ev = df_filtered.copy()
+                df_ev["Result"] = np.where(df_ev["MFE"] >= user_mfe, "Win", "Loss")
+                win_streak, loss_streak = calculate_streaks(df_ev["Result"].tolist())
+                total_wins = (df_ev["Result"] == "Win").sum()
+                total_losses = (df_ev["Result"] == "Loss").sum()
+
+                # Display streak statistics for EV Tester
+                st.subheader("📊 Streak Data for EV Tester")
+                ev_streak_data = pd.DataFrame({
+                    "Metric": ["Biggest Win Streak", "Biggest Loss Streak", "Total Wins", "Total Losses"],
+                    "Value": [win_streak, loss_streak, total_wins, total_losses]
+                })
+
+                st.table(ev_streak_data)
 
             else:
                 st.warning("No trades found that match the selected criteria. Adjust your inputs.")
