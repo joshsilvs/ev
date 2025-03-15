@@ -72,6 +72,58 @@ if uploaded_file is not None:
                 df_filtered = df[df['Datetime'] >= one_year_ago]
 
             # =============================
+            # 🔍 Expected Value (EV) Tester
+            # =============================
+            st.header("🔍 Expected Value (EV) Tester")
+
+            user_mae = st.number_input("Enter MAE Threshold (SL Level)", min_value=0.0, step=0.01, value=0.2)
+            user_mfe = st.number_input("Enter MFE Threshold (TP Level)", min_value=0.0, step=0.01, value=0.5)
+            trade_amount = st.number_input("Enter Dollar Amount per Trade ($)", min_value=1.0, step=1.0, value=100.0)
+
+            win_trades = df_filtered[df_filtered["MFE"] >= user_mfe].shape[0]
+            loss_trades = df_filtered[(df_filtered["MAE"] >= user_mae) | (df_filtered["MFE"] < user_mfe)].shape[0]
+            total_trades = win_trades + loss_trades
+
+            if total_trades > 0:
+                win_rate = win_trades / total_trades
+                loss_rate = loss_trades / total_trades
+                expected_value = (win_rate * trade_amount) - (loss_rate * trade_amount)
+
+                st.subheader("📊 EV Tester Results")
+                st.write(f"✔️ **Win Rate:** {win_rate:.2%}")
+                st.write(f"❌ **Loss Rate:** {loss_rate:.2%}")
+                st.write(f"💰 **Expected Value per Trade:** ${expected_value:.2f}")
+
+            # =============================
+            # ✨ Magic Button for Finding Best SL, TP, EV
+            # =============================
+            st.header("✨ Let the Magic Happen!")
+
+            if st.button("✨ Magic ✨"):
+                best_ev = float('-inf')
+                best_sl, best_tp = None, None
+
+                for sl in np.percentile(df_filtered["MAE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
+                    for tp in np.percentile(df_filtered["MFE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
+                        wins = df_filtered[df_filtered["MFE"] >= tp].shape[0]
+                        losses = df_filtered[(df_filtered["MAE"] >= sl) | (df_filtered["MFE"] < tp)].shape[0]
+                        total = wins + losses
+
+                        if total > 0:
+                            win_rate = wins / total
+                            ev = (win_rate * trade_amount) - ((1 - win_rate) * trade_amount)
+
+                            if ev > best_ev:
+                                best_ev = ev
+                                best_sl, best_tp = sl, tp
+
+                if best_sl is not None and best_tp is not None:
+                    st.success("✅ Best Combination Found!")
+                    st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl:.2f}")
+                    st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp:.2f}")
+                    st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev:.2f}")
+
+            # =============================
             # 🔘 Find Best 1:1 RR Combination
             # =============================
             st.header("🔘 Find Best 1:1 Risk-to-Reward Combination")
@@ -89,9 +141,9 @@ if uploaded_file is not None:
 
                     if total_rr > 0:
                         win_rate_rr = wins_rr / total_rr
-                        ev_rr = (win_rate_rr * 100) - ((1 - win_rate_rr) * 100)
+                        ev_rr = (win_rate_rr * trade_amount) - ((1 - win_rate_rr) * trade_amount)
 
-                        if ev_rr > best_ev_rr and win_rate_rr > 0.5:  # Ensure positive win rate
+                        if ev_rr > best_ev_rr and win_rate_rr > 0.5:
                             best_ev_rr = ev_rr
                             best_sl_rr, best_tp_rr = sl_rr, tp_rr
 
