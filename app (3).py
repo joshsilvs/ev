@@ -35,7 +35,7 @@ def monte_carlo_risk_of_ruin(win_rate, risk_per_trade, num_simulations=10000, ma
     return ruin_count / num_simulations  # Proportion of simulations where ruin occurred
 
 # Streamlit App Title
-st.title("📊 EV Ryno Raper")
+st.title("📊 MAE & MFE Trading Dashboard")
 
 # File Upload
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
@@ -60,9 +60,9 @@ if uploaded_file is not None:
             # =============================
             # ✨ Magic Button for Finding Best SL, TP, EV, and Risk of Ruin
             # =============================
-            st.header("✨ Quit Your Job Button")
+            st.header("✨ Let the Magic Happen!")
 
-            if st.button("✨ I Quit ✨"):
+            if st.button("✨ Magic ✨"):
                 best_ev = float('-inf')
                 best_sl, best_tp = None, None
                 best_win_rate = 0
