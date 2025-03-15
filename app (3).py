@@ -5,9 +5,6 @@ import plotly.express as px
 
 # Function to calculate win/loss streaks
 def calculate_streaks(results):
-    """
-    Calculates the longest winning and losing streaks given a list of 'Win' and 'Loss' results.
-    """
     max_win_streak = max_loss_streak = 0
     current_win_streak = current_loss_streak = 0
 
