@@ -58,6 +58,37 @@ if uploaded_file is not None:
             df['Duration'] = pd.to_numeric(df['Duration'], errors='coerce')
 
             # =============================
+            # 🔍 Expected Value (EV) Tester
+            # =============================
+            st.header("🔍 Expected Value (EV) Tester")
+
+            # User inputs for MAE, MFE thresholds, and dollar amount per trade
+            user_mae = st.number_input("Enter MAE Threshold (SL Level)", min_value=0.0, step=0.01, value=0.2)
+            user_mfe = st.number_input("Enter MFE Threshold (TP Level)", min_value=0.0, step=0.01, value=0.5)
+            trade_amount = st.number_input("Enter Dollar Amount per Trade ($)", min_value=1.0, step=1.0, value=100.0)
+
+            # Count Wins (TP) and Losses (SL)
+            win_trades = df[df["MFE"] >= user_mfe].shape[0]
+            loss_trades = df[(df["MAE"] >= user_mae) | (df["MFE"] < user_mfe)].shape[0]
+            total_trades = win_trades + loss_trades
+
+            if total_trades > 0:
+                win_rate = win_trades / total_trades
+                loss_rate = loss_trades / total_trades
+
+                # Calculate Expected Value (EV)
+                expected_value = (win_rate * trade_amount) - (loss_rate * trade_amount)
+
+                # Display Results
+                st.subheader("📊 EV Tester Results")
+                st.write(f"✔️ **Win Rate:** {win_rate:.2%}")
+                st.write(f"❌ **Loss Rate:** {loss_rate:.2%}")
+                st.write(f"💰 **Expected Value per Trade:** ${expected_value:.2f}")
+
+            else:
+                st.warning("No trades found that match the selected criteria. Adjust your inputs.")
+
+            # =============================
             # ✨ Magic Button for Finding Best SL, TP, EV, and Risk of Ruin
             # =============================
             st.header("✨ Let the Magic Happen!")
@@ -76,7 +107,7 @@ if uploaded_file is not None:
 
                         if total > 0:
                             win_rate = wins / total
-                            ev = (win_rate * 1) - ((1 - win_rate) * 1)  # Normalized EV
+                            ev = (win_rate * trade_amount) - ((1 - win_rate) * trade_amount)
 
                             if ev > best_ev:
                                 best_ev = ev
@@ -85,7 +116,7 @@ if uploaded_file is not None:
 
                 # Calculate Risk of Ruin (Kelly & Monte Carlo)
                 if best_sl is not None and best_tp is not None:
-                    risk_per_trade = 0.01  # Assume 1% risk per trade
+                    risk_per_trade = 0.01  
                     risk_to_reward = (best_tp / best_sl) if best_sl > 0 else 0
 
                     # Kelly Criterion Risk of Ruin
