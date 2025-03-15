@@ -4,14 +4,14 @@ import numpy as np
 import plotly.express as px
 
 # Streamlit App Title
-st.title("📊 EV Ryno Raper")
+st.title("📊 MAE & MFE Trading Dashboard")
 
 # File Upload
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 
 if uploaded_file is not None:
     try:
-        # Load CSV and display debug info
+        # Load CSV
         df = pd.read_csv(uploaded_file)
         st.write("✅ File uploaded successfully!")
 
@@ -45,6 +45,30 @@ if uploaded_file is not None:
 
             # Show updated dataset preview
             st.write("✅ Processed Data Preview:", df.head())
+
+            # =============================
+            # 🔍 Select Timeframe: 3, 6, or 12 Months
+            # =============================
+            st.header("⏳ Select Timeframe for Analysis")
+            timeframe_option = st.radio(
+                "Choose a timeframe:",
+                ["3 Months", "6 Months", "12 Months"],
+                index=2
+            )
+
+            # Define timeframes based on the latest date in the dataset
+            latest_date = df['Datetime'].max()
+            three_months_ago = latest_date - pd.DateOffset(months=3)
+            six_months_ago = latest_date - pd.DateOffset(months=6)
+            one_year_ago = latest_date - pd.DateOffset(years=1)
+
+            # Apply selected timeframe filter
+            if timeframe_option == "3 Months":
+                df = df[df['Datetime'] >= three_months_ago]
+            elif timeframe_option == "6 Months":
+                df = df[df['Datetime'] >= six_months_ago]
+            elif timeframe_option == "12 Months":
+                df = df[df['Datetime'] >= one_year_ago]
 
             # =============================
             # 🔍 Expected Value (EV) Tester
@@ -86,6 +110,40 @@ if uploaded_file is not None:
 
             else:
                 st.warning("No trades found that match the selected criteria. Adjust your inputs.")
+
+            # =============================
+            # ✨ Magic Button for Finding Best SL, TP, and EV
+            # =============================
+            st.header("✨ Let the Magic Happen!")
+
+            if st.button("✨ Magic ✨"):
+                best_ev = float('-inf')
+                best_sl, best_tp = None, None
+
+                # Loop through possible SL and TP combinations
+                for sl in np.percentile(df_filtered["MAE"], [10, 20, 30, 40, 50, 60, 70, 80, 90]):
+                    for tp in np.percentile(df_filtered["MFE"], [10, 20, 30, 40, 50, 60, 70, 80, 90]):
+                        wins = df_filtered[df_filtered["MFE"] >= tp].shape[0]
+                        losses = df_filtered[(df_filtered["MAE"] >= sl) | (df_filtered["MFE"] < tp)].shape[0]
+                        total = wins + losses
+
+                        if total > 0:
+                            win_rate = wins / total
+                            loss_rate = losses / total
+                            ev = (win_rate * trade_amount) - (loss_rate * trade_amount)
+
+                            if ev > best_ev:
+                                best_ev = ev
+                                best_sl, best_tp = sl, tp
+
+                # Display Best Results
+                if best_sl is not None and best_tp is not None:
+                    st.success("✅ Best Combination Found!")
+                    st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl:.2f}")
+                    st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp:.2f}")
+                    st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev:.2f}")
+                else:
+                    st.error("⚠️ No optimal combination found. Try adjusting filters.")
 
     except Exception as e:
         st.error(f"⚠️ Error loading file: {e}")
