@@ -85,59 +85,46 @@ if uploaded_file is not None:
             df_filtered = df[df['DayOfWeek'].isin(days_selected)]
 
             # =============================
-            # 🔍 Expected Value (EV) Tester
+            # 🔘 Find Best 1:2 RR Combination
             # =============================
-            st.header("🔍 Expected Value (EV) Tester")
+            st.header("🔘 Find Best 1:2 Risk-to-Reward Combination")
 
-            # User inputs for MAE, MFE thresholds, and dollar amount per trade
-            user_mae = st.number_input("Enter MAE Threshold (SL Level)", min_value=0.0, step=0.01, value=0.2)
-            user_mfe = st.number_input("Enter MFE Threshold (TP Level)", min_value=0.0, step=0.01, value=0.5)
-            trade_amount = st.number_input("Enter Dollar Amount per Trade ($)", min_value=1.0, step=1.0, value=100.0)
+            if st.button("🔘 Find Best 1:2 RR Setup"):
+                best_ev_12 = float('-inf')
+                best_sl_12, best_tp_12 = None, None
 
-            # Count Wins (TP) and Losses (SL)
-            win_trades = df_filtered[df_filtered["MFE"] >= user_mfe].shape[0]
-            loss_trades = df_filtered[(df_filtered["MAE"] >= user_mae) | (df_filtered["MFE"] < user_mfe)].shape[0]
-            total_trades = win_trades + loss_trades
+                for sl_12 in np.percentile(df_filtered["MAE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
+                    tp_12 = sl_12 * 2  # 1:2 Risk-to-Reward Ratio
 
-            if total_trades > 0:
-                win_rate = win_trades / total_trades
-                loss_rate = loss_trades / total_trades
-                expected_value = (win_rate * trade_amount) - (loss_rate * trade_amount)
+                    wins_12 = df_filtered[df_filtered["MFE"] >= tp_12].shape[0]
+                    losses_12 = df_filtered[(df_filtered["MAE"] >= sl_12) | (df_filtered["MFE"] < tp_12)].shape[0]
+                    total_12 = wins_12 + losses_12
 
-                st.subheader("📊 EV Tester Results")
-                st.write(f"✔️ **Win Rate:** {win_rate:.2%}")
-                st.write(f"❌ **Loss Rate:** {loss_rate:.2%}")
-                st.write(f"💰 **Expected Value per Trade:** ${expected_value:.2f}")
+                    if total_12 > 0:
+                        win_rate_12 = wins_12 / total_12
+                        ev_12 = (win_rate_12 * 100) - ((1 - win_rate_12) * 100)
 
-            # =============================
-            # 🔘 Find Best 1:1 RR Combination
-            # =============================
-            st.header("🔘 Find Best 1:1 Risk-to-Reward Combination")
+                        if ev_12 > best_ev_12 and win_rate_12 > 0.5:
+                            best_ev_12 = ev_12
+                            best_sl_12, best_tp_12 = sl_12, tp_12
 
-            if st.button("🔘 Find Best 1:1 RR Setup"):
-                best_ev_rr = float('-inf')
-                best_sl_rr, best_tp_rr = None, None
+                if best_sl_12 is not None and best_tp_12 is not None:
+                    st.success("✅ Best 1:2 RR Combination Found!")
+                    st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl_12:.2f}")
+                    st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp_12:.2f}")
+                    st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev_12:.2f}")
 
-                for sl_rr in np.percentile(df_filtered["MAE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
-                    tp_rr = sl_rr  # 1:1 Risk-to-Reward Ratio
+                    # Calculate streaks for 1:2 RR Finder
+                    trade_results_12 = ["Win" if mfe >= best_tp_12 else "Loss" for mfe in df_filtered["MFE"]]
+                    max_win_streak_12, max_loss_streak_12 = calculate_streaks(trade_results_12)
+                    total_wins_12 = trade_results_12.count("Win")
+                    total_losses_12 = trade_results_12.count("Loss")
 
-                    wins_rr = df_filtered[df_filtered["MFE"] >= tp_rr].shape[0]
-                    losses_rr = df_filtered[(df_filtered["MAE"] >= sl_rr) | (df_filtered["MFE"] < tp_rr)].shape[0]
-                    total_rr = wins_rr + losses_rr
-
-                    if total_rr > 0:
-                        win_rate_rr = wins_rr / total_rr
-                        ev_rr = (win_rate_rr * 100) - ((1 - win_rate_rr) * 100)
-
-                        if ev_rr > best_ev_rr and win_rate_rr > 0.5:
-                            best_ev_rr = ev_rr
-                            best_sl_rr, best_tp_rr = sl_rr, tp_rr
-
-                if best_sl_rr is not None and best_tp_rr is not None:
-                    st.success("✅ Best 1:1 RR Combination Found!")
-                    st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl_rr:.2f}")
-                    st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp_rr:.2f}")
-                    st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev_rr:.2f}")
+                    st.subheader("📊 Win/Loss Streak Data (1:2 RR Finder)")
+                    st.write(f"🔥 **Biggest Win Streak:** {max_win_streak_12}")
+                    st.write(f"💀 **Biggest Loss Streak:** {max_loss_streak_12}")
+                    st.write(f"✅ **Total Wins:** {total_wins_12}")
+                    st.write(f"❌ **Total Losses:** {total_losses_12}")
 
     except Exception as e:
         st.error(f"⚠️ Error loading file: {e}")
