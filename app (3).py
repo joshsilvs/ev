@@ -6,7 +6,7 @@ import plotly.express as px
 # Function to calculate win/loss streaks
 def calculate_streaks(results):
     """
-    Given a list of 'Win' and 'Loss' results, calculate the longest winning and losing streaks.
+    Calculates the longest winning and losing streaks given a list of 'Win' and 'Loss' results.
     """
     max_win_streak = max_loss_streak = 0
     current_win_streak = current_loss_streak = 0
@@ -80,7 +80,6 @@ if uploaded_file is not None:
                 best_ev_rr = float('-inf')
                 best_sl_rr, best_tp_rr = None, None
 
-                # Loop through SL values and set TP equal to SL (1:1 RR)
                 for sl_rr in np.percentile(df_filtered["MAE"].dropna(), [10, 20, 30, 40, 50, 60, 70, 80, 90]):
                     tp_rr = sl_rr  # 1:1 Risk-to-Reward Ratio
 
@@ -96,15 +95,11 @@ if uploaded_file is not None:
                             best_ev_rr = ev_rr
                             best_sl_rr, best_tp_rr = sl_rr, tp_rr
 
-                # Display Best Results for 1:1 RR
                 if best_sl_rr is not None and best_tp_rr is not None:
                     st.success("✅ Best 1:1 RR Combination Found!")
                     st.write(f"📉 **Optimal Stop-Loss (SL):** {best_sl_rr:.2f}")
                     st.write(f"📈 **Optimal Take-Profit (TP):** {best_tp_rr:.2f}")
                     st.write(f"💰 **Maximum Expected Value (EV):** ${best_ev_rr:.2f}")
-
-                else:
-                    st.error("⚠️ No optimal 1:1 RR combination found. Try adjusting filters.")
 
     except Exception as e:
         st.error(f"⚠️ Error loading file: {e}")
